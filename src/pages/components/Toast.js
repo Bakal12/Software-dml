@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { X } from "lucide-react"
+import DOMPurify from "dompurify"
 
 const Toast = ({ message, type, onClose, duration = 5000 }) => {
   const [visible, setVisible] = useState(true)
@@ -28,7 +29,7 @@ const Toast = ({ message, type, onClose, duration = 5000 }) => {
 
   return (
     <div className={`toast toast-${type} ${isLeaving ? "toast-leave" : ""}`}>
-      <p>{message}</p>
+      <p dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(message) }} />
       <button onClick={() => setIsLeaving(true)} className="toast-close" aria-label="Cerrar notificación">
         <X size={16} />
       </button>

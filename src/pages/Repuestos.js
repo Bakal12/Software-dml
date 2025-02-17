@@ -8,6 +8,7 @@ import { useState, useEffect } from "react"
 import { Pagination } from "@mui/material"
 import api from "./API"
 import { ToastContainer } from "./components/Toast"
+import DOMPurify from "dompurify"
 
 export default function Repuestos() {
   /*-------------------------------------- VARIABLES --------------------------------------*/
@@ -120,7 +121,7 @@ export default function Repuestos() {
       addToast("Repuestos creados exitosamente", "success")
     } catch (error) {
       console.error("Error al crear los repuestos:", error)
-      addToast(`Error: ${error.message}`, "error")
+      addToast("Error al crear los repuestos", "error")
     }
   }
 
@@ -133,6 +134,7 @@ export default function Repuestos() {
       addToast("Repuesto actualizado exitosamente", "success")
     } catch (error) {
       console.error("Error al actualizar el repuesto:", error.response?.data || error.message)
+      addToast("Error al actualizar repuesto", "error")
     }
   }
 
@@ -145,7 +147,7 @@ export default function Repuestos() {
       addToast("Repuesto eliminado exitosamente", "success")
     } catch (error) {
       console.error("Error al eliminar el repuesto:", error)
-      addToast(`Error: ${error.message}`, "error")
+      addToast("Error al eliminar repuesto", "error")
     }
   }
 
@@ -161,7 +163,7 @@ export default function Repuestos() {
       addToast("Datos cargados exitosamente", "success", 3000)
     } catch (error) {
       console.error("Error al cargar los datos:", error)
-      addToast(`Error: ${error.message}`, "error")
+      addToast("Error al cargar los datos", "error")
     }
   }
 
@@ -175,7 +177,7 @@ export default function Repuestos() {
     }
 
     fetchRepuestos()
-  }, [limit]) // Added loadAllRepuestos to dependencies
+  }, []) // Fixed dependency
 
   /*------------------------------------------- MISCELÁNEA -------------------------------------------*/
 
@@ -199,7 +201,7 @@ export default function Repuestos() {
       setCurrentPage(1)
     } catch (error) {
       console.error("Error al buscar repuestos:", error)
-      addToast(`Error: ${error.message}`, "error")
+      addToast("Error al buscar repuestos", "error")
     }
   }
 
@@ -283,12 +285,12 @@ export default function Repuestos() {
         defaultValue={initialValue}
         style={{ width: `${contentWidth}px` }}
         onBlur={(e) => {
-          updateRepuesto(repuestoId, field, e.target.value)
+          updateRepuesto(repuestoId, field, DOMPurify.sanitize(e.target.value))
           setEditingCell(null)
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
-            updateRepuesto(repuestoId, field, e.target.value)
+            updateRepuesto(repuestoId, field, DOMPurify.sanitize(e.target.value))
             setEditingCell(null)
           }
         }}

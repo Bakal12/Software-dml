@@ -2,7 +2,7 @@ import axios from "axios"
 import { getAuth, onAuthStateChanged } from "firebase/auth"
 
 const api = axios.create({
-  baseURL: "https://dml.ilstecar.com/api",
+  baseURL: process.env.REACT_APP_API_BASE_URL_TESTING,
   headers: {
     "Content-Type": "application/json",
   },

@@ -18,6 +18,7 @@ import templateFile from "../Plantilla_excel.xlsx"
 import ExcelJS from "exceljs"
 import api from "./API"
 import { ToastContainer } from "./components/Toast"
+import DOMPurify from "dompurify"
 
 const Home = () => {
   const [ficha, setFicha] = useState([])
@@ -50,7 +51,6 @@ const Home = () => {
   const [sortOrder, setSortOrder] = useState("asc")
 
   const [searchTerm, setSearchTerm] = useState("")
-  //const [searchField, setSearchField] = useState("item") //Removed
 
   const [repuestosExistentes, setRepuestosExistentes] = useState({})
   const [newFichas, setNewFichas] = useState([createEmptyFicha()])
@@ -110,6 +110,7 @@ const Home = () => {
       )
       addToast("Ficha actualizada exitosamente", "success", 3000)
     } catch (error) {
+      addToast("Error al actualizar ficha", "error")
       console.error("Error al actualizar la ficha:", error)
     }
   }
@@ -122,12 +123,14 @@ const Home = () => {
       addToast("Ficha eliminada exitosamente", "success", 3000)
     } catch (error) {
       console.error("Error al eliminar la ficha:", error)
-      addToast(`Error: ${error.message}`, "error")
+      addToast("Error al eliminar ficha", "error")
     }
   }
 
   const loadAllFichas = async () => {
     try {
+      console.log("BASE URL:", process.env.REACT_APP_API_BASE_URL_TESTING)
+
       const response = await api.get("/fichas")
       const allficha = response.data
       setFicha(allficha)
@@ -136,7 +139,7 @@ const Home = () => {
       addToast("Datos cargados exitosamente", "success", 3000)
     } catch (error) {
       console.error("Error al cargar los datos:", error)
-      addToast(`Error: ${error.message}`, "error")
+      addToast("Error al cargar los datos", "error")
     } finally {
       setIsLoading(false)
     }
@@ -144,7 +147,7 @@ const Home = () => {
 
   useEffect(() => {
     loadAllFichas()
-  }, [limit]) // Added ficha to dependencies
+  }, [])
 
   useEffect(() => {
     const startIndex = (currentPage - 1) * limit
@@ -193,7 +196,7 @@ const Home = () => {
       addToast("Archivo Excel generado exitosamente", "success", 3000)
     } catch (error) {
       console.error("Error al exportar el Excel:", error)
-      addToast(`Error: ${error.message}`, "error")
+      addToast("Error al exportar Excel", "error")
     }
   }
 
@@ -211,7 +214,7 @@ const Home = () => {
       setDisplayedFichas(filteredFichas.slice(0, limit))
     } catch (error) {
       console.error("Error during search:", error)
-      addToast(`Error: ${error.message}`, "error")
+      addToast("Error al buscar fichas", "error")
     }
   }
 
@@ -369,12 +372,12 @@ const Home = () => {
         defaultValue={initialValue}
         style={{ width: `${contentWidth}px` }}
         onBlur={(e) => {
-          updateFicha(fichaId, field, e.target.value)
+          updateFicha(fichaId, field, DOMPurify.sanitize(e.target.value))
           setEditingCell(null)
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
-            updateFicha(fichaId, field, e.target.value)
+            updateFicha(fichaId, field, DOMPurify.sanitize(e.target.value))
             setEditingCell(null)
           }
         }}
@@ -474,7 +477,7 @@ const Home = () => {
         `Stock ${action === "decrease" ? "disminuido" : "aumentado"} correctamente para el repuesto:`,
         codigoRepuesto,
       )
-      addToast("Stock actualizado exitosamente", "success", 3000)
+      addToast(`Stock del repuesto ${codigoRepuesto} exitosamente`, "success", 3000)
     } catch (error) {
       console.error("Error al actualizar el stock del repuesto:", error.response?.data || error.message)
       alert(`Error al actualizar el stock: ${error.response?.data?.detail || error.message}`)
@@ -485,7 +488,7 @@ const Home = () => {
   const formatRepuestosForDisplay = (repuestosMap, fichaId, isRepuestosFaltantes = false) => {
     return Object.entries(repuestosMap).map(([nombre, cantidad]) => (
       <div key={nombre} style={{ display: "flex", alignItems: "center" }}>
-        {`${nombre} (${cantidad})`}
+        {DOMPurify.sanitize(`${nombre} (${cantidad})`)}
         {!isRepuestosFaltantes && verificarRepuesto(nombre) && (
           <img
             src={
@@ -876,13 +879,13 @@ const Home = () => {
                       { field: "cliente", label: "Cliente" },
                       { field: "serie", label: "Nº Serie" },
                       { field: "modelo", label: "Modelo" },
-                      { field: "no_bat", label: "Nº Bat" },
-                      { field: "no_cargador", label: "Nº Cargador" },
+                      { field: "nº_bat", label: "Nº Bat" },
+                      { field: "nº_cargador", label: "Nº Cargador" },
                       { field: "diagnóstico", label: "Diagnóstico Ingreso" },
                       { field: "tipo", label: "Tipo" },
                       { field: "observaciones", label: "Observaciones" },
                       { field: "reparación", label: "Reparación" },
-                      { field: "no_ciclos", label: "Nº Ciclos" },
+                      { field: "nº_ciclos", label: "Nº Ciclos" },
                       { field: "repuestos_colocados", label: "Repuestos Colocados" },
                       { field: "repuestos_faltantes", label: "Repuestos Faltantes" },
                       { field: "estado", label: "Estado" },
