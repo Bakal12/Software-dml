@@ -1,10 +1,12 @@
+"use client"
+
 import "./repuestos.css"
 import OrdenASC from "./Images/OrdenASC.png"
 import OrdenDESC from "./Images/OrdenDESC.png"
 import OrdenIDLE from "./Images/OrdenIDLE.png"
 import TrashICON from "./Images/TrashICON.png"
 import DeleteICON from "./Images/DeleteICON.png"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Pagination } from "@mui/material"
 import api from "./API"
 import { ToastContainer } from "./components/Toast"
@@ -43,6 +45,10 @@ export default function Repuestos() {
   const [fichas, setFichas] = useState([]) // State para almacenar los datos de las fichas
 
   const [toasts, setToasts] = useState([])
+  const editingInputRef = useRef(null)
+
+  // Añade este nuevo estado para manejar los campos erróneos
+  const [errorFields, setErrorFields] = useState({})
 
   const autoResize = (textarea) => {
     textarea.style.height = "auto" // Restablecer altura
@@ -81,21 +87,57 @@ export default function Repuestos() {
     setRepuestos((prev) => prev.map((repuesto, i) => (i === index ? { ...repuesto, [field]: value } : repuesto)))
   }
 
-  // Crear todos los repuestos en la base de datos
+  const addToast = (message, type, duration = 5000) => {
+    const newToast = { id: Date.now(), message, type, duration }
+    setToasts((prevToasts) => {
+      const updatedToasts = [newToast, ...prevToasts]
+      if (updatedToasts.length > 5) {
+        const oldestToast = updatedToasts.pop()
+        setTimeout(() => removeToast(oldestToast.id), 0)
+      }
+      return updatedToasts
+    })
+  }
+
+  const removeToast = (id) => {
+    setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id))
+  }
+
+  // Modifica la función validateField para que devuelva un booleano
+  const validateField = (field, value) => {
+    switch (field) {
+      case "codigo":
+      case "descripcion":
+      case "numero_estanteria":
+      case "numero_estante":
+      case "numero_BIN":
+      case "posicion_BIN":
+        return typeof value === "string" && value.trim() !== ""
+      case "cantidad_disponible":
+        return !isNaN(value) && Number.parseInt(value) >= 0
+      default:
+        return true
+    }
+  }
+
+  // Modifica la función createAllRepuestos
   const createAllRepuestos = async () => {
-    const isValid = repuestos.every(
-      (repuesto) =>
-        repuesto.codigo &&
-        repuesto.descripcion &&
-        repuesto.cantidad_disponible &&
-        repuesto.numero_estanteria &&
-        repuesto.numero_estante &&
-        repuesto.numero_BIN &&
-        repuesto.posicion_BIN,
-    )
+    const newErrorFields = {}
+    let isValid = true
+
+    repuestos.forEach((repuesto, index) => {
+      Object.entries(repuesto).forEach(([field, value]) => {
+        if (!validateField(field, value)) {
+          newErrorFields[`${index}-${field}`] = true
+          isValid = false
+        }
+      })
+    })
+
+    setErrorFields(newErrorFields)
 
     if (!isValid) {
-      alert("Por favor, complete todos los campos antes de crear los repuestos.")
+      addToast("Por favor, complete todos los campos correctamente antes de crear los repuestos.", "warning")
       return
     }
 
@@ -118,6 +160,7 @@ export default function Repuestos() {
           posicion_BIN: "",
         },
       ])
+      setErrorFields({})
       addToast("Repuestos creados exitosamente", "success")
     } catch (error) {
       console.error("Error al crear los repuestos:", error)
@@ -231,22 +274,6 @@ export default function Repuestos() {
     return isInRepuestosFaltantes ? "repuesto-faltante" : ""
   }
 
-  const addToast = (message, type, duration = 5000) => {
-    const newToast = { id: Date.now(), message, type, duration }
-    setToasts((prevToasts) => {
-      const updatedToasts = [newToast, ...prevToasts]
-      if (updatedToasts.length > 5) {
-        const oldestToast = updatedToasts.pop()
-        setTimeout(() => removeToast(oldestToast.id), 0)
-      }
-      return updatedToasts
-    })
-  }
-
-  const removeToast = (id) => {
-    setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id))
-  }
-
   // Actualizar los registros mostrados cuando cambie la página o el límite
   useEffect(() => {
     const startIndex = (currentPage - 1) * limit
@@ -278,28 +305,48 @@ export default function Repuestos() {
   const makeEditable = (repuestoId, field, initialValue) => {
     const contentWidth = Math.max(100, getContentWidth(initialValue))
     return (
-      <textarea
-        rows={2}
-        spellCheck="true"
-        className="input editable-field"
-        defaultValue={initialValue}
-        style={{ width: `${contentWidth}px` }}
-        onBlur={(e) => {
-          updateRepuesto(repuestoId, field, DOMPurify.sanitize(e.target.value))
-          setEditingCell(null)
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            updateRepuesto(repuestoId, field, DOMPurify.sanitize(e.target.value))
-            setEditingCell(null)
-          }
-        }}
-        onInput={(e) => {
-          autoResize(e.target)
-          e.target.style.width = `${Math.max(100, getContentWidth(e.target.value))}px`
-        }}
-        autoFocus
-      />
+      <div>
+        <textarea
+          ref={editingInputRef}
+          rows={2}
+          spellCheck="true"
+          className="input editable-field"
+          defaultValue={initialValue}
+          style={{ width: `${contentWidth}px` }}
+          onBlur={(e) => {
+            const newValue = DOMPurify.sanitize(e.target.value)
+            if (newValue.trim() !== "") {
+              if (validateField(field, newValue)) {
+                updateRepuesto(repuestoId, field, newValue)
+                setEditingCell(null)
+              } else {
+                addToast(`Tipo de dato inválido`, "error")
+              }
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              const newValue = DOMPurify.sanitize(e.target.value)
+              if (newValue.trim() !== "") {
+                if (validateField(field, newValue)) {
+                  updateRepuesto(repuestoId, field, newValue)
+                  setEditingCell(null)
+                } else {
+                  addToast(`Tipo de dato inválido`, "error")
+                }
+              }
+            }
+          }}
+          onInput={(e) => {
+            autoResize(e.target)
+            e.target.style.width = `${Math.max(100, getContentWidth(e.target.value))}px`
+          }}
+          autoFocus
+        />
+        {editingInputRef.current && editingInputRef.current.value.trim() === "" && (
+          <div className="edit-warning">Escriba al menos un carácter</div>
+        )}
+      </div>
     )
   }
 
@@ -339,65 +386,30 @@ export default function Repuestos() {
                 <h3>Crear nuevos repuestos</h3>
                 {repuestos.map((repuesto, index) => (
                   <div key={index} style={{ marginTop: "30px", marginBottom: "10px" }}>
-                    {/* Título dinámico */}
                     <h4>{`Repuesto ${index + 1}`}</h4>
                     <div className="form-grid">
-                      <textarea
-                        className="input"
-                        rows={1}
-                        placeholder="Codigo..."
-                        value={repuesto.codigo}
-                        onChange={(e) => updateRepuestoField(index, "codigo", e.target.value)}
-                        onInput={(e) => autoResize(e.target)}
-                      />
-                      <textarea
-                        className="input"
-                        rows={1}
-                        placeholder="Descripcion..."
-                        value={repuesto.descripcion}
-                        onChange={(e) => updateRepuestoField(index, "descripcion", e.target.value)}
-                        onInput={(e) => autoResize(e.target)}
-                      />
-                      <input
-                        className="input"
-                        type="number"
-                        placeholder="Cantidad disponible..."
-                        value={repuesto.cantidad_disponible}
-                        onChange={(e) => updateRepuestoField(index, "cantidad_disponible", e.target.value)}
-                      />
-                      <textarea
-                        className="input"
-                        rows={1}
-                        placeholder="Numero estanteria..."
-                        value={repuesto.numero_estanteria}
-                        onChange={(e) => updateRepuestoField(index, "numero_estanteria", e.target.value)}
-                        onInput={(e) => autoResize(e.target)}
-                      />
-                      <textarea
-                        className="input"
-                        rows={1}
-                        placeholder="Numero estante..."
-                        value={repuesto.numero_estante}
-                        onChange={(e) => updateRepuestoField(index, "numero_estante", e.target.value)}
-                        onInput={(e) => autoResize(e.target)}
-                      />
-                      <textarea
-                        className="input"
-                        rows={1}
-                        placeholder="Numero BIN..."
-                        value={repuesto.numero_BIN}
-                        onChange={(e) => updateRepuestoField(index, "numero_BIN", e.target.value)}
-                        onInput={(e) => autoResize(e.target)}
-                      />
-                      <textarea
-                        className="input"
-                        rows={1}
-                        placeholder="Posicion BIN..."
-                        value={repuesto.posicion_BIN}
-                        onChange={(e) => updateRepuestoField(index, "posicion_BIN", e.target.value)}
-                        onInput={(e) => autoResize(e.target)}
-                      />
-                      {/* Botón para eliminar la grilla */}
+                      {[
+                        "codigo",
+                        "descripcion",
+                        "cantidad_disponible",
+                        "numero_estanteria",
+                        "numero_estante",
+                        "numero_BIN",
+                        "posicion_BIN",
+                      ].map((field) => (
+                        <textarea
+                          key={field}
+                          className={`input ${errorFields[`${index}-${field}`] ? "error-input" : ""}`}
+                          rows={1}
+                          placeholder={field.charAt(0).toUpperCase() + field.slice(1).replace("_", " ") + "..."}
+                          value={repuesto[field]}
+                          onChange={(e) => {
+                            updateRepuestoField(index, field, e.target.value)
+                            setErrorFields((prev) => ({ ...prev, [`${index}-${field}`]: false }))
+                          }}
+                          onInput={(e) => autoResize(e.target)}
+                        />
+                      ))}
                       {index > 0 && (
                         <button className="icon-button-repuesto delete-button" onClick={() => removeRepuesto(index)}>
                           <img src={DeleteICON || "/placeholder.svg"} alt="Eliminar" className="button-icon" />

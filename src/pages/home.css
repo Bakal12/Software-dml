@@ -186,6 +186,11 @@ body {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+/* Añade este estilo para los campos con error */
+.error-input {
+  border: 2px solid red;
+}
+
 th {
   position: relative;
   text-align: left;
@@ -598,6 +603,11 @@ th {
   color: white;
 }
 
+.toast-warning {
+  background-color: orange;
+  color: white;
+}
+
 .toast p {
   margin: 0;
   padding-right: 10px;
@@ -632,5 +642,11 @@ th {
   max-width: 100%;
   resize: none;
   overflow: auto;
+}
+
+.edit-warning {
+  color: #ff0000;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
 }
 
