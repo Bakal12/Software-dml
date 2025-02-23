@@ -1,5 +1,3 @@
-"use client"
-
 import "./home.css"
 import InfoICON from "./Images/InfoICON.png"
 import DeleteICON from "./Images/DeleteICON.png"
@@ -14,7 +12,7 @@ import WarningICON from "./Images/WarningICON.png"
 import DecreaseStockICON from "./Images/DecreaseStockICON.png"
 import IncreaseStockICON from "./Images/IncreaseStockICON.png"
 // Importa las dependencias necesarias al principio del archivo
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Pagination } from "@mui/material"
 import { saveAs } from "file-saver"
 import templateFile from "../Plantilla_excel.xlsx"
@@ -65,7 +63,7 @@ const Home = () => {
   const [toasts, setToasts] = useState([])
   const editingInputRef = useRef(null)
 
-  const addToast = (message, type, duration = 5000) => {
+  const addToast = useCallback((message, type, duration = 5000) => {
     const newToast = { id: Date.now(), message, type, duration }
     setToasts((prevToasts) => {
       const updatedToasts = [newToast, ...prevToasts]
@@ -75,7 +73,7 @@ const Home = () => {
       }
       return updatedToasts
     })
-  }
+  }, [])
 
   const removeToast = (id) => {
     setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id))
@@ -175,7 +173,7 @@ const Home = () => {
     }
   }
 
-  const loadAllFichas = async () => {
+  const loadAllFichas = useCallback(async () => {
     try {
       const response = await api.get("/fichas")
       const allficha = response.data
@@ -189,11 +187,11 @@ const Home = () => {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [limit, addToast])
 
   useEffect(() => {
     loadAllFichas()
-  }, [])
+  }, [loadAllFichas])
 
   useEffect(() => {
     const startIndex = (currentPage - 1) * limit
@@ -295,12 +293,12 @@ const Home = () => {
                 placeholder="Código del repuesto"
                 onBlur={(e) => {
                   const newNombre = e.target.value
-                  const newRepuestos = { ...repuestosMap }
                   if (newNombre !== nombre) {
+                    const newRepuestos = { ...repuestosMap }
                     newRepuestos[newNombre] = repuestosMap[nombre]
                     delete newRepuestos[nombre]
+                    updateFicha(fichaId, field, newRepuestos)
                   }
-                  updateFicha(fichaId, field, newRepuestos)
                 }}
               />
               <input
@@ -311,8 +309,10 @@ const Home = () => {
                 placeholder="Cantidad"
                 onBlur={(e) => {
                   const newCantidad = Number(e.target.value)
-                  const newRepuestos = { ...repuestosMap, [nombre]: newCantidad }
-                  updateFicha(fichaId, field, newRepuestos)
+                  if (newCantidad !== cantidad) {
+                    const newRepuestos = { ...repuestosMap, [nombre]: newCantidad }
+                    updateFicha(fichaId, field, newRepuestos)
+                  }
                 }}
               />
               <button
@@ -397,10 +397,14 @@ const Home = () => {
           style={{ width: `${contentWidth}px` }}
           defaultValue={initialValue}
           onChange={(e) => {
-            updateFicha(fichaId, field, e.target.value)
+            if (e.target.value !== initialValue) {
+              updateFicha(fichaId, field, e.target.value)
+            }
             setEditingCell(null)
           }}
+          onBlur={() => setEditingCell(null)}
         >
+          <option disabled>Seleccione una opción</option>
           {predefinedOptions[field].map((option) => (
             <option key={option} value={option}>
               {option}
@@ -424,24 +428,24 @@ const Home = () => {
             const newValue = DOMPurify.sanitize(e.target.value)
             if (newValue.trim() !== "") {
               if (validateField(field, newValue)) {
-                updateFicha(fichaId, field, newValue)
-                setEditingCell(null)
+                if (field === "numero_ficha") {
+                  // Para campos numéricos, comparamos los valores numéricos
+                  if (Number.parseInt(newValue, 10) !== Number.parseInt(initialValue, 10)) {
+                    updateFicha(fichaId, field, newValue)
+                  }
+                } else if (newValue !== initialValue) {
+                  updateFicha(fichaId, field, newValue)
+                }
               } else {
                 addToast(`Tipo de dato inválido`, "error")
               }
             }
+            setEditingCell(null)
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              const newValue = DOMPurify.sanitize(e.target.value)
-              if (newValue.trim() !== "") {
-                if (validateField(field, newValue)) {
-                  updateFicha(fichaId, field, newValue)
-                  setEditingCell(null)
-                } else {
-                  addToast(`Tipo de dato inválido`, "error")
-                }
-              }
+              e.preventDefault()
+              e.target.blur()
             }
           }}
           onInput={(e) => {
@@ -670,7 +674,7 @@ const Home = () => {
                                 spellCheck="true"
                                 rows={1}
                                 className={`input-field ${errorFields[`${index}-${field}`] ? "error-input" : ""}`}
-                                placeholder={ field.charAt(0).toUpperCase() + field.slice(1).replace("_", " ") + "..." }
+                                placeholder={field.charAt(0).toUpperCase() + field.slice(1).replace("_", " ") + "..."}
                                 onChange={(event) => {
                                   const inputValue = event.target.value
                                   if (field === "repuestos_colocados") {
@@ -703,14 +707,16 @@ const Home = () => {
                             <select
                               key={field}
                               className={`input-field ${errorFields[`${index}-${field}`] ? "error-input" : ""}`}
-                              placeholder={ field + "..." }
+                              placeholder={field + "..."}
                               onChange={(event) => {
                                 updateNewFichaField(index, field, event.target.value)
                                 setErrorFields((prev) => ({ ...prev, [`${index}-${field}`]: false }))
                               }}
                               value={value}
                             >
-                              <option value="" disabled>{ field.charAt(0).toUpperCase() + field.slice(1) + "..." }</option>
+                              <option value="" disabled>
+                                {field.charAt(0).toUpperCase() + field.slice(1) + "..."}
+                              </option>
                               {/* Agrega las opciones correspondientes para cada campo select */}
                               {field === "modelo" && (
                                 <>
@@ -753,7 +759,7 @@ const Home = () => {
                               spellCheck="true"
                               rows={1}
                               className={`input-field ${errorFields[`${index}-${field}`] ? "error-input" : ""}`}
-                              placeholder={ field.charAt(0).toUpperCase() + field.slice(1).replace("_", " ") + "..." }
+                              placeholder={field.charAt(0).toUpperCase() + field.slice(1).replace("_", " ") + "..."}
                               onChange={(event) => {
                                 updateNewFichaField(index, field, event.target.value)
                                 setErrorFields((prev) => ({ ...prev, [`${index}-${field}`]: false }))

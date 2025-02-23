@@ -1,12 +1,10 @@
-"use client"
-
 import "./repuestos.css"
 import OrdenASC from "./Images/OrdenASC.png"
 import OrdenDESC from "./Images/OrdenDESC.png"
 import OrdenIDLE from "./Images/OrdenIDLE.png"
 import TrashICON from "./Images/TrashICON.png"
 import DeleteICON from "./Images/DeleteICON.png"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Pagination } from "@mui/material"
 import api from "./API"
 import { ToastContainer } from "./components/Toast"
@@ -19,7 +17,7 @@ export default function Repuestos() {
     {
       codigo: "",
       descripcion: "",
-      cantidad_disponible: "0",
+      cantidad_disponible: "",
       numero_estanteria: "",
       numero_estante: "",
       numero_BIN: "",
@@ -87,7 +85,7 @@ export default function Repuestos() {
     setRepuestos((prev) => prev.map((repuesto, i) => (i === index ? { ...repuesto, [field]: value } : repuesto)))
   }
 
-  const addToast = (message, type, duration = 5000) => {
+  const addToast = useCallback((message, type, duration = 5000) => {
     const newToast = { id: Date.now(), message, type, duration }
     setToasts((prevToasts) => {
       const updatedToasts = [newToast, ...prevToasts]
@@ -97,7 +95,7 @@ export default function Repuestos() {
       }
       return updatedToasts
     })
-  }
+  }, [])
 
   const removeToast = (id) => {
     setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id))
@@ -196,7 +194,7 @@ export default function Repuestos() {
 
   /*------------------------------------------- CARGA DE DATOS -------------------------------------------*/
 
-  const loadAllRepuestos = async () => {
+  const loadAllRepuestos = useCallback(async () => {
     try {
       const response = await api.get("/repuestos")
       const repuestos = response.data
@@ -208,7 +206,7 @@ export default function Repuestos() {
       console.error("Error al cargar los datos:", error)
       addToast("Error al cargar los datos", "error")
     }
-  }
+  }, [limit, addToast])
 
   // Obtener todos los registros al cargar el componente
   useEffect(() => {
@@ -220,7 +218,7 @@ export default function Repuestos() {
     }
 
     fetchRepuestos()
-  }, []) // Fixed dependency
+  }, [loadAllRepuestos]) // Fixed dependency
 
   /*------------------------------------------- MISCELÁNEA -------------------------------------------*/
 
@@ -317,24 +315,24 @@ export default function Repuestos() {
             const newValue = DOMPurify.sanitize(e.target.value)
             if (newValue.trim() !== "") {
               if (validateField(field, newValue)) {
-                updateRepuesto(repuestoId, field, newValue)
-                setEditingCell(null)
+                if (field === "cantidad_disponible") {
+                  // Para campos numéricos, comparamos los valores numéricos
+                  if (Number.parseInt(newValue, 10) !== Number.parseInt(initialValue, 10)) {
+                    updateRepuesto(repuestoId, field, newValue)
+                  }
+                } else if (newValue !== initialValue) {
+                  updateRepuesto(repuestoId, field, newValue)
+                }
               } else {
                 addToast(`Tipo de dato inválido`, "error")
               }
             }
+            setEditingCell(null)
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              const newValue = DOMPurify.sanitize(e.target.value)
-              if (newValue.trim() !== "") {
-                if (validateField(field, newValue)) {
-                  updateRepuesto(repuestoId, field, newValue)
-                  setEditingCell(null)
-                } else {
-                  addToast(`Tipo de dato inválido`, "error")
-                }
-              }
+              e.preventDefault()
+              e.target.blur()
             }
           }}
           onInput={(e) => {
