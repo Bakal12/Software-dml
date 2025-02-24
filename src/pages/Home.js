@@ -1,3 +1,6 @@
+"use client"
+
+// Importación de estilos y recursos
 import "./home.css"
 import InfoICON from "./Images/InfoICON.png"
 import DeleteICON from "./Images/DeleteICON.png"
@@ -11,7 +14,8 @@ import ExcelICON from "./Images/ExcelICON.png"
 import WarningICON from "./Images/WarningICON.png"
 import DecreaseStockICON from "./Images/DecreaseStockICON.png"
 import IncreaseStockICON from "./Images/IncreaseStockICON.png"
-// Importa las dependencias necesarias al principio del archivo
+
+// Importación de dependencias y componentes
 import { useState, useEffect, useRef, useCallback } from "react"
 import { Pagination } from "@mui/material"
 import { saveAs } from "file-saver"
@@ -21,8 +25,12 @@ import api from "./API"
 import { ToastContainer } from "./components/Toast"
 import DOMPurify from "dompurify"
 
+// Definición del componente principal Home
 const Home = () => {
+  // Estado para almacenar las fichas
   const [ficha, setFicha] = useState([])
+
+  // Función para crear una ficha vacía
   const createEmptyFicha = () => ({
     numero_ficha: "",
     cliente: "",
@@ -40,29 +48,37 @@ const Home = () => {
     estado: "",
   })
 
+  // Estados para manejar la carga y visualización de datos
   const [isLoading, setIsLoading] = useState(true)
   const [displayedFichas, setDisplayedFichas] = useState([])
   const [totalPages, setTotalPages] = useState(1)
   const [currentPage, setCurrentPage] = useState(1)
   const [limit, setLimit] = useState(5)
 
+  // Estados para manejar la edición y ordenamiento
   const [editingCell, setEditingCell] = useState(null)
   const [showNewFichaForm, setShowNewFichaForm] = useState(false)
   const [sortField, setSortField] = useState(null)
   const [sortOrder, setSortOrder] = useState("asc")
 
+  // Estado para manejar la búsqueda
   const [searchTerm, setSearchTerm] = useState("")
 
+  // Estados para manejar los repuestos
   const [repuestosExistentes, setRepuestosExistentes] = useState({})
   const [newFichas, setNewFichas] = useState([createEmptyFicha()])
   const [repuestosColocadosInput, setRepuestosColocadosInput] = useState({})
   const [repuestosFaltantesInput, setRepuestosFaltantesInput] = useState({})
   const [updatedRepuestos, setUpdatedRepuestos] = useState({})
-  // Dentro de la función Home, agrega estas nuevas funciones y estados
 
+  // Estados para manejar las notificaciones (toasts)
   const [toasts, setToasts] = useState([])
   const editingInputRef = useRef(null)
 
+  // Estado para manejar los campos con error
+  const [errorFields, setErrorFields] = useState({})
+
+  // Función para añadir una notificación (toast)
   const addToast = useCallback((message, type, duration = 5000) => {
     const newToast = { id: Date.now(), message, type, duration }
     setToasts((prevToasts) => {
@@ -75,14 +91,12 @@ const Home = () => {
     })
   }, [])
 
+  // Función para remover una notificación (toast)
   const removeToast = (id) => {
     setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id))
   }
 
-  // Añade este nuevo estado para manejar los campos erróneos
-  const [errorFields, setErrorFields] = useState({})
-
-  // Modifica la función validateField para que devuelva un booleano
+  // Función para validar los campos de la ficha
   const validateField = (field, value) => {
     switch (field) {
       case "numero_ficha":
@@ -107,7 +121,7 @@ const Home = () => {
     }
   }
 
-  // Modifica la función createAllFichas
+  // Función para crear todas las fichas
   const createAllFichas = async () => {
     const newErrorFields = {}
     let isValid = true
@@ -136,6 +150,7 @@ const Home = () => {
     setErrorFields({})
   }
 
+  // Función para crear una ficha individual
   const createFicha = async (fichaData) => {
     try {
       await api.post("/fichas", fichaData)
@@ -147,6 +162,7 @@ const Home = () => {
     }
   }
 
+  // Función para actualizar una ficha
   const updateFicha = async (id, field, value) => {
     try {
       await api.put(`/fichas/${id}`, { [field]: value })
@@ -161,6 +177,7 @@ const Home = () => {
     }
   }
 
+  // Función para eliminar una ficha
   const deleteFicha = async (id) => {
     try {
       await api.delete(`/fichas/${id}`)
@@ -173,6 +190,7 @@ const Home = () => {
     }
   }
 
+  // Función para cargar todas las fichas
   const loadAllFichas = useCallback(async () => {
     try {
       const response = await api.get("/fichas")
@@ -189,16 +207,19 @@ const Home = () => {
     }
   }, [limit, addToast])
 
+  // Efecto para cargar las fichas al montar el componente
   useEffect(() => {
     loadAllFichas()
   }, [loadAllFichas])
 
+  // Efecto para actualizar las fichas mostradas cuando cambia la página o el límite
   useEffect(() => {
     const startIndex = (currentPage - 1) * limit
     const endIndex = startIndex + limit
     setDisplayedFichas(ficha.slice(startIndex, endIndex))
   }, [currentPage, limit, ficha])
 
+  // Función para exportar a Excel
   const exportToExcel = async (fichaData) => {
     try {
       const templateBuffer = await fetch(templateFile).then((response) => response.arrayBuffer())
@@ -208,6 +229,7 @@ const Home = () => {
 
       const worksheet = workbook.getWorksheet(1)
 
+      // Rellenar la hoja de cálculo con los datos de la ficha
       worksheet.getCell("A3").value = fichaData.numero_ficha
       worksheet.getCell("C11").value = fichaData.cliente
       worksheet.getCell("E13").value = fichaData.serie
@@ -225,6 +247,7 @@ const Home = () => {
         return acc
       }, {})
 
+      // Rellenar la información de repuestos
       Object.entries(repuestosColocados).forEach(([nombre, cantidad]) => {
         worksheet.getCell(`A${row}`).value = nombre
         worksheet.getCell(`B${row}`).value = cantidad
@@ -244,6 +267,7 @@ const Home = () => {
     }
   }
 
+  // Función para buscar fichas en la base de datos
   const searchFichasInDatabase = async (term) => {
     if (term.trim() === "") {
       loadAllFichas()
@@ -262,11 +286,13 @@ const Home = () => {
     }
   }
 
+  // Función para ajustar automáticamente el tamaño de los textarea
   const autoResize = (textarea) => {
     textarea.style.height = "auto"
     textarea.style.height = `${textarea.scrollHeight}px`
   }
 
+  // Función para obtener el ancho del contenido
   const getContentWidth = (content) => {
     const canvas = document.createElement("canvas")
     const context = canvas.getContext("2d")
@@ -274,11 +300,12 @@ const Home = () => {
     return Math.ceil(context.measureText(content).width) + 20 // 20px extra para padding
   }
 
-  // Modifica la función makeEditable
+  // Función para hacer editable un campo
   const makeEditable = (fichaId, field, initialValue) => {
     const isRepuestosField = field === "repuestos_colocados" || field === "repuestos_faltantes"
 
     if (isRepuestosField) {
+      // Lógica para campos de repuestos
       const repuestosMap = initialValue || {}
 
       return (
@@ -461,6 +488,7 @@ const Home = () => {
     )
   }
 
+  // Función para parsear los repuestos desde un string
   const parseRepuestos = (input) => {
     const lines = input.split("\n").filter((line) => line.trim() !== "")
     const repuestosMap = {}
@@ -476,6 +504,7 @@ const Home = () => {
     return repuestosMap
   }
 
+  // Función para ordenar los datos
   const sortData = (field) => {
     const order = sortField === field && sortOrder === "asc" ? "desc" : "asc"
     setSortField(field)
@@ -490,6 +519,7 @@ const Home = () => {
     setFicha(sortedFicha)
   }
 
+  // Efecto para cargar los repuestos existentes
   useEffect(() => {
     const fetchRepuestos = async () => {
       try {
@@ -507,10 +537,12 @@ const Home = () => {
     fetchRepuestos()
   }, [])
 
+  // Función para verificar si un repuesto existe
   const verificarRepuesto = (codigo) => {
     return repuestosExistentes[codigo] || false
   }
 
+  // Función para actualizar el stock de un repuesto
   const updateRepuestoStock = async (fichaId, codigoRepuesto, cantidad, action) => {
     try {
       const response = await api.put(`/update_stock/${fichaId}/${codigoRepuesto}`, { action })
@@ -556,6 +588,7 @@ const Home = () => {
     }
   }
 
+  // Función para formatear los repuestos para su visualización
   const formatRepuestosForDisplay = (repuestosMap, fichaId, isRepuestosFaltantes = false) => {
     return Object.entries(repuestosMap).map(([nombre, cantidad]) => (
       <div key={nombre} style={{ display: "flex", alignItems: "center" }}>
@@ -596,6 +629,7 @@ const Home = () => {
     ))
   }
 
+  // Efecto para cargar los repuestos actualizados desde localStorage
   useEffect(() => {
     const savedUpdatedRepuestos = localStorage.getItem("updatedRepuestos")
     if (savedUpdatedRepuestos) {
@@ -603,10 +637,12 @@ const Home = () => {
     }
   }, [])
 
+  // Función para añadir un nuevo formulario de ficha
   const addNewFichaForm = () => {
     setNewFichas((prev) => [...prev, createEmptyFicha()])
   }
 
+  // Función para actualizar un campo de una nueva ficha
   const updateNewFichaField = (index, field, value) => {
     setNewFichas((prev) =>
       prev.map((ficha, i) => {
@@ -624,6 +660,7 @@ const Home = () => {
     )
   }
 
+  // Renderizado del componente
   return (
     <div className="app-container">
       <header className="header">

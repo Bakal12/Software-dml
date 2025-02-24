@@ -1,23 +1,30 @@
+"use client"
+
+// Importación de estilos y recursos
 import "./repuestos.css"
 import OrdenASC from "./Images/OrdenASC.png"
 import OrdenDESC from "./Images/OrdenDESC.png"
 import OrdenIDLE from "./Images/OrdenIDLE.png"
 import TrashICON from "./Images/TrashICON.png"
 import DeleteICON from "./Images/DeleteICON.png"
+
+// Importación de hooks y componentes de React
 import { useState, useEffect, useRef, useCallback } from "react"
 import { Pagination } from "@mui/material"
 import api from "./API"
 import { ToastContainer } from "./components/Toast"
 import DOMPurify from "dompurify"
 
+// Componente principal Repuestos
 export default function Repuestos() {
   /*-------------------------------------- VARIABLES --------------------------------------*/
 
+  // Estado para almacenar los repuestos
   const [repuestos, setRepuestos] = useState([
     {
       codigo: "",
       descripcion: "",
-      cantidad_disponible: "",
+      cantidad_disponible: "0",
       numero_estanteria: "",
       numero_estante: "",
       numero_BIN: "",
@@ -25,29 +32,38 @@ export default function Repuestos() {
     },
   ]) // Inicialmente contiene una sola grilla
 
-  const [editingCell, setEditingCell] = useState(null) // Variable que referencia a editar las celdas
+  // Estado para manejar la celda en edición
+  const [editingCell, setEditingCell] = useState(null)
 
-  const [showNewRepuestoForm, setShowNewRepuestoForm] = useState(false) // Variable que referencia a mostrar la grilla para crear nuevo repuesto
+  // Estado para mostrar/ocultar el formulario de nuevo repuesto
+  const [showNewRepuestoForm, setShowNewRepuestoForm] = useState(false)
 
-  const [allRepuestos, setAllRepuestos] = useState([]) // Variable que guarda todo el array de registros en la coleccion de la db
-  const [displayedRepuestos, setDisplayedRepuestos] = useState([]) // Guarda registros actuales en pantalla
-  const [limit, setLimit] = useState(5) // Guarda el límite por página
-  const [currentPage, setCurrentPage] = useState(1) // Guarda la página actual
-  const [totalPages, setTotalPages] = useState(1) // Guarda el total de páginas
-  const [isLoading, setIsLoading] = useState(true) // Guarda el estado de carga
-  const [sortField, setSortField] = useState(null) // Campo activo para ordenar
-  const [sortDirection, setSortDirection] = useState("idle") // Dirección actual (ascendente, descendente, idle)
+  // Estados para manejar la lista de repuestos y su visualización
+  const [allRepuestos, setAllRepuestos] = useState([])
+  const [displayedRepuestos, setDisplayedRepuestos] = useState([])
+  const [limit, setLimit] = useState(5)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [isLoading, setIsLoading] = useState(true)
 
-  const [searchTerm, setSearchTerm] = useState("") // Guarda el "prompt" del query para la busqueda
+  // Estados para manejar el ordenamiento
+  const [sortField, setSortField] = useState(null)
+  const [sortDirection, setSortDirection] = useState("idle")
 
-  const [fichas, setFichas] = useState([]) // State para almacenar los datos de las fichas
+  // Estado para manejar la búsqueda
+  const [searchTerm, setSearchTerm] = useState("")
 
+  // Estado para almacenar las fichas (usado para resaltar repuestos faltantes)
+  const [fichas, setFichas] = useState([])
+
+  // Estados para manejar las notificaciones (toasts)
   const [toasts, setToasts] = useState([])
   const editingInputRef = useRef(null)
 
-  // Añade este nuevo estado para manejar los campos erróneos
+  // Estado para manejar los campos con error
   const [errorFields, setErrorFields] = useState({})
 
+  // Función para ajustar automáticamente el tamaño de los textarea
   const autoResize = (textarea) => {
     textarea.style.height = "auto" // Restablecer altura
     textarea.style.height = `${textarea.scrollHeight}px` // Ajustar a la altura del contenido
@@ -57,7 +73,7 @@ export default function Repuestos() {
 
   /*--------------- Crear repuesto ---------------*/
 
-  // Agregar una nueva grilla
+  // Función para agregar un nuevo repuesto al estado
   const addRepuesto = () => {
     setRepuestos((prev) => [
       ...prev,
@@ -73,18 +89,19 @@ export default function Repuestos() {
     ])
   }
 
-  // Eliminar una grilla específica
+  // Función para eliminar un repuesto del estado
   const removeRepuesto = (index) => {
     if (repuestos.length > 1) {
       setRepuestos((prev) => prev.filter((_, i) => i !== index))
     }
   }
 
-  // Actualizar los datos de una grilla
+  // Función para actualizar un campo de un repuesto en el estado
   const updateRepuestoField = (index, field, value) => {
     setRepuestos((prev) => prev.map((repuesto, i) => (i === index ? { ...repuesto, [field]: value } : repuesto)))
   }
 
+  // Función para añadir una notificación (toast)
   const addToast = useCallback((message, type, duration = 5000) => {
     const newToast = { id: Date.now(), message, type, duration }
     setToasts((prevToasts) => {
@@ -97,11 +114,12 @@ export default function Repuestos() {
     })
   }, [])
 
+  // Función para remover una notificación (toast)
   const removeToast = (id) => {
     setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id))
   }
 
-  // Modifica la función validateField para que devuelva un booleano
+  // Función para validar un campo de repuesto
   const validateField = (field, value) => {
     switch (field) {
       case "codigo":
@@ -118,7 +136,7 @@ export default function Repuestos() {
     }
   }
 
-  // Modifica la función createAllRepuestos
+  // Función para crear todos los repuestos
   const createAllRepuestos = async () => {
     const newErrorFields = {}
     let isValid = true
@@ -166,7 +184,7 @@ export default function Repuestos() {
     }
   }
 
-  // Actualizar repuesto
+  // Función para actualizar un repuesto
   const updateRepuesto = async (id, field, value) => {
     try {
       await api.put(`/repuestos/${id}`, { [field]: value })
@@ -179,7 +197,7 @@ export default function Repuestos() {
     }
   }
 
-  // Eliminar repuesto
+  // Función para eliminar un repuesto
   const deleteRepuesto = async (id) => {
     try {
       await api.delete(`/repuestos/${id}`)
@@ -194,6 +212,7 @@ export default function Repuestos() {
 
   /*------------------------------------------- CARGA DE DATOS -------------------------------------------*/
 
+  // Función para cargar todos los repuestos
   const loadAllRepuestos = useCallback(async () => {
     try {
       const response = await api.get("/repuestos")
@@ -208,7 +227,7 @@ export default function Repuestos() {
     }
   }, [limit, addToast])
 
-  // Obtener todos los registros al cargar el componente
+  // Efecto para cargar los repuestos al montar el componente
   useEffect(() => {
     console.log("Fetching data...")
     const fetchRepuestos = async () => {
@@ -218,11 +237,11 @@ export default function Repuestos() {
     }
 
     fetchRepuestos()
-  }, [loadAllRepuestos]) // Fixed dependency
+  }, [loadAllRepuestos])
 
   /*------------------------------------------- MISCELÁNEA -------------------------------------------*/
 
-  // Función donde realiza el query para la búsqueda
+  // Función para buscar repuestos
   const searchRepuestos = async (term) => {
     if (term.trim() === "") {
       setDisplayedRepuestos(allRepuestos.slice(0, limit))
@@ -246,6 +265,7 @@ export default function Repuestos() {
     }
   }
 
+  // Función para ordenar los repuestos
   const toggleSort = (field) => {
     let nextDirection = "asc"
 
@@ -264,21 +284,23 @@ export default function Repuestos() {
     setAllRepuestos(sortedRepuestos)
   }
 
+  // Función para obtener la clase CSS de una fila de repuesto
   const getRowClass = (repuesto) => {
-    // Check if the repuesto is in any ficha's "repuestos faltantes"
+    // Verifica si el repuesto está en "repuestos faltantes" de alguna ficha
     const isInRepuestosFaltantes = fichas.some(
       (ficha) => ficha.repuestos_faltantes && ficha.repuestos_faltantes[repuesto.codigo],
     )
     return isInRepuestosFaltantes ? "repuesto-faltante" : ""
   }
 
-  // Actualizar los registros mostrados cuando cambie la página o el límite
+  // Efecto para actualizar los repuestos mostrados cuando cambia la página o el límite
   useEffect(() => {
     const startIndex = (currentPage - 1) * limit
     const endIndex = startIndex + limit
     setDisplayedRepuestos(allRepuestos.slice(startIndex, endIndex))
   }, [currentPage, limit, allRepuestos])
 
+  // Efecto para cargar las fichas (usado para resaltar repuestos faltantes)
   useEffect(() => {
     const fetchFichas = async () => {
       try {
@@ -292,6 +314,7 @@ export default function Repuestos() {
     fetchFichas()
   }, [])
 
+  // Función para obtener el ancho del contenido
   const getContentWidth = (content) => {
     const canvas = document.createElement("canvas")
     const context = canvas.getContext("2d")
@@ -299,7 +322,7 @@ export default function Repuestos() {
     return Math.ceil(context.measureText(content).width) + 20 // 20px extra para padding
   }
 
-  // Editar repuesto
+  // Función para hacer editable un campo de repuesto
   const makeEditable = (repuestoId, field, initialValue) => {
     const contentWidth = Math.max(100, getContentWidth(initialValue))
     return (
@@ -560,3 +583,4 @@ export default function Repuestos() {
   )
 }
 
+// Fin del componente Repuestos
